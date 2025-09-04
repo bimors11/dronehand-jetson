@@ -14,6 +14,7 @@ import uvicorn
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from numpy.typing import NDArray
 
 from detection import Output
@@ -399,6 +400,8 @@ def create_app(mission_manager: MissionManager) -> FastAPI:
             return {"message": "Mission settings updated successfully."}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    app.mount("/", StaticFiles(directory="web", html=True), name="static")
 
     return app
 

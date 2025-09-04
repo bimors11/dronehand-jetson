@@ -1,0 +1,8 @@
+opencv-python
+numpy
+tensorflow
+fastapi
+uvicorn
+scipy
+mavsdk
+PyYAML

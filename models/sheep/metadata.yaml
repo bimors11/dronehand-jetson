@@ -1,0 +1,20 @@
+description: YOLO11n model TFlite export
+author: Drone-hand
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 1024
+- 1024
+names:
+  0: lamb not ok
+  1: lamb ok
+  2: sheep not ok
+  3: sheep ok
+args:
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: false
+  nms: false
+channels: 3

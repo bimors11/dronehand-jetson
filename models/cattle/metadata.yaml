@@ -1,0 +1,17 @@
+description: YOLO11n model TFLite export
+author: Drone-hand
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 1024
+- 1024
+names:
+  0: Cow ok
+args:
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: false
+  nms: false
+channels: 3

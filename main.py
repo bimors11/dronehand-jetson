@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import json
 import os
+import pickle
 import shutil
 import tempfile
 import threading
@@ -14,6 +16,7 @@ import uvicorn
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from numpy.typing import NDArray
 
 from detection import Output
@@ -174,8 +177,16 @@ class MissionManager:
             detections = self.detector.detect(frame)
 
             if self.running_mission and telemetry:
-                self.outputs.append(Output(detections, inference_time, self.frame_id))
+                output = Output(detections, inference_time, self.frame_id)
+
+                self.outputs.append(output)
                 tracked_detections = self.tracker.update(detections, self.detector.labels, telemetry, self.ground_width, self.ground_height)
+
+                with open(f"missions/{self.mission_id}/outputs/{self.frame_id}.pkl", "wb") as f:
+                    pickle.dump(output, f)
+
+                with open(f"missions/{self.mission_id}/outputs/{self.frame_id}-tracked.pkl", "wb") as f:
+                    pickle.dump(tracked_detections, f)
 
                 cv2.imwrite(f"missions/{self.mission_id}/frames/{self.frame_id}.jpg", frame)
 
@@ -234,6 +245,7 @@ class MissionManager:
         os.makedirs(f"missions/{mission_id}", exist_ok=True)
         os.makedirs(f"missions/{mission_id}/frames", exist_ok=True)
         os.makedirs(f"missions/{mission_id}/thumbnails", exist_ok=True)
+        os.makedirs(f"missions/{mission_id}/outputs", exist_ok=True)
 
     def stop_mission(self):
         with self.lock:
@@ -266,7 +278,7 @@ class MissionManager:
             if not self.running_mission:
                 return None
 
-            return {
+            detections = {
                 "mission_id": self.mission_id,
                 "frame_id": self.frame_id,
                 "detections": [
@@ -280,6 +292,11 @@ class MissionManager:
                     for detection in self.tracker.tracked_objects
                 ],
             }
+
+            with open(f"missions/{self.mission_id}/detections.json", "w") as f:
+                json.dump(detections, f)
+
+            return detections
 
     def update_settings(self, ground_width: float | None = None, ground_height: float | None = None):
         with self.lock:
@@ -357,6 +374,14 @@ def create_app(mission_manager: MissionManager) -> FastAPI:
     async def get_mission_stats():
         return mission_manager.get_current_mission_stats()
 
+    @app.get("/missions/{mission_id}/stats")
+    async def get_mission_stats(mission_id: str):
+        if not os.path.exists(f"missions/{mission_id}/detections.json"):
+            raise HTTPException(status_code=404, detail="Mission not found.")
+
+        with open(f"missions/{mission_id}/detections.json", "r") as f:
+            return json.load(f)
+
     @app.get("/missions/{mission_id}/detections/{detection_id}")
     async def get_detection(mission_id: str, detection_id: str):
         return FileResponse(f"missions/{mission_id}/thumbnails/{detection_id}.jpg")
@@ -399,6 +424,8 @@ def create_app(mission_manager: MissionManager) -> FastAPI:
             return {"message": "Mission settings updated successfully."}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    app.mount("/", StaticFiles(directory="web", html=True), name="static")
 
     return app
 

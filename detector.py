@@ -49,7 +49,7 @@ class Detector:
         detections: List[Detection] = []
 
         for detection in preds[0]:
-            scores = detection[5:]
+            scores = detection[4:]
             class_id = np.argmax(scores)
             confidence = scores[class_id]
 
